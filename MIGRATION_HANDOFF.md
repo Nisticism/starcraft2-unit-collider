@@ -229,6 +229,30 @@ yet byte-compared against the original Java.
 - **Verified:** `tsc` clean, `eslint` 0 errors, 26 Jest tests green, `expo export`
   bundles the whole app.
 
+### `data-script` done + `data-audit` partial (2026-10-17)
+- **Yes, accurate current data is scrapable.** Built two no-dependency Node scripts
+  (run via `npm run data:fetch` / `npm run data:audit`):
+  - `scripts/fetchLiquipedia.mjs` — pulls current unit stats from Liquipedia's
+    MediaWiki API, **batching up to 40 page titles per request** (the whole roster in
+    ~2 requests), with a descriptive User-Agent and local caching (`scripts/.cache/`,
+    gitignored). Writes `scripts/liquipedia-current.json`.
+  - `scripts/auditUnitData.mjs` — diffs our bundled `units.ts` against that snapshot
+    (HP, shields, armor, minerals, gas, supply, build time, damage) and writes
+    `DATA_AUDIT.md`. Reads our data straight from `units.ts` (no TS runtime needed).
+- **Verified the data is exact** for the units that came through (Marine, Stalker,
+  Siege Tank, Auto-Turret): e.g. it already flags real changes — **Auto-Turret
+  150→100 HP and 1→0 armor**, **Stalker build time 30→27s**. See `DATA_AUDIT.md`.
+- **Caveat:** Liquipedia's `parse` action is ~1 req/30s; my initial per-unit version
+  tripped that and earned a temporary IP rate-limit. The rewritten **batched** script
+  needs only ~2 requests, but the IP was still penalized at end of session, so only 5
+  units are in the committed snapshot. **To finish the full audit:** run
+  `npm run data:fetch` from an un-penalized network (or after the cooldown), then
+  `npm run data:audit`. The 66 "not yet fetched" entries are *not* legacy — just
+  un-retrieved.
+- **Legacy support added:** `Unit` now has optional `legacy?: boolean` / `legacyNote?`
+  (types.ts). Removed units will be **labelled, never deleted** (set during
+  `update-unit-data` once the full audit identifies them).
+
 ### Environment caveat
 - Installed **Node is v20.20.0**; Expo SDK 58 officially requires **Node >= 22.13**.
   It still bundles on Node 20 (verified) but prints an "outdated Node" warning.

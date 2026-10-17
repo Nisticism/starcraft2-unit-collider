@@ -34,7 +34,9 @@
     "format": "prettier --write .",
     "test": "jest",
     "test:watch": "jest --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "data:fetch": "node scripts/fetchLiquipedia.mjs",
+    "data:audit": "node scripts/auditUnitData.mjs"
   },
   "jest": {
     "preset": "jest-expo",

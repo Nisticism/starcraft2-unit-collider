@@ -42,3 +42,6 @@ yarn-error.*
 
 # local export checks
 .expo-export-check/
+
+# Liquipedia fetch cache (dev tooling)
+scripts/.cache/

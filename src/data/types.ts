@@ -15,6 +15,13 @@ export interface Unit {
   unitID: number;
   /** Display name of the unit. */
   Name: string;
+  /**
+   * True if this unit has been removed from the live game. Removed units are kept
+   * (never deleted) and flagged here; set during `update-unit-data` from the audit.
+   */
+  legacy?: boolean;
+  /** Short note on legacy status (e.g. the patch/version that removed the unit). */
+  legacyNote?: string;
   /** Image id placeholder from the original DB (always null here; images are mapped separately). */
   Pic1: number | null;
   /** Hit points. */
