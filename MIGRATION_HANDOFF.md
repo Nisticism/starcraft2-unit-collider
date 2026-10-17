@@ -147,6 +147,57 @@ fully offline-first. A later task adds optional remote sync (see `data-sync-mech
 - **Verified:** `tsc --noEmit` clean; `src/data/__tests__/unitImages.test.ts`
   asserts every unit (by id and name) has a bundled image and that requires resolve.
 
+### `port-engine` done + `golden-master-tests` partial (2026-10-17)
+**What was ported.** The original engine lives in `UnitVUnit.java` (~6,993 lines):
+`resultMaker()` (~1,500 lines of combat math), `theModifiers()`, four giant
+`*Setter` methods (~3,500 lines that **hard-code** each unit's true combat stats,
+parameterized by upgrade level), and small per-unit `*Modifier` methods. It is
+deeply wired into Android UI (spinners/radio buttons), so it **cannot be run
+standalone** — a true Java-execution golden master would require building a Java
+harness first (deferred; see below).
+
+**Approach (data-driven, per your "less unit-specific code" goal).**
+- **Profiles as data, not code.** A Python parser (in the session workspace)
+  extracted all 71 units' combat stats from `generalSetter()` — the no-race-filter
+  superset — evaluating the linear upgrade formulas (`value = base + att*attackUps +
+  arm*armorUps`). Cross-checked against the three race setters + the unit2 branches:
+  **they agree on every field except one** (Auto-Turret armor, an irrelevant edge).
+  Output: `src/engine/unitProfiles.ts` (71 typed `UnitProfile`s). This replaces
+  ~3,500 lines of imperative setters with a compact data table. Spot-checked against
+  real SC2 values (Marine 6/45, Immortal +30 vs Armored, Stalker 13 (+5 vs Armored),
+  etc.).
+- **General simulation engine.** `src/engine/collider.ts` drives a small event
+  simulation from the profiles instead of copying `resultMaker`'s per-unit
+  spaghetti: weapon selection (ground/air, incl. Colossus hit by AA), attribute
+  bonuses per projectile, armor/shield reduction (min 1 dmg), HP/shield pools, and
+  HP regen (zerg 0.38/s, Mutalisk 1.4/s). Public API: `collide(a, b)` →
+  `{ unit1, unit2, winner, summary }`, plus `computeAttack`, `getProfile`, `regenRate`.
+- **Preserved exceptions** (documented in the file): spell units ignore armor
+  (Widow Mine / Disruptor / Oracle), Widow Mine/Disruptor bonus vs Protoss shields,
+  Colossus targetable by anti-air, lifespan expiry for temporary units, peaceful
+  (can't-attack) handling.
+- **Verified:** `src/engine/__tests__/collider.test.ts` — 16 tests asserting
+  known SC2 damage numbers and matchup winners (Marauder>Marine, Zealot>Marine,
+  Immortal>Marauder, mirror = tie, unarmed stalemate, upgrade effects). `tsc`/lint clean.
+
+**Bugs / quirks spotted (left faithful; candidates for `engine-refine`).**
+- **Multi-projectile armor:** modeling `attackCount` as N projectiles subtracts
+  armor N times (e.g. Marauder loses 2 armor for its "2 shots"), slightly
+  under-counting vs real SC2 single-hit units. Faithful to the original's model.
+- **Auto-Turret** armor scales `×2` per armor upgrade in `generalSetter` (almost
+  certainly a typo — summoned turrets don't take armor upgrades). Kept canonical.
+- The original had self-described dead code / "hacks" (e.g. `Disruptor ... == 145`
+  instant-kill thresholds, closed-form regen approximations) — intentionally **not**
+  reproduced; the simulation handles these generally.
+
+**Deferred (needs the "special modifier" spinner, not yet in `Loadout`).** Activated
+abilities (Stimpack, Charge, Guardian Shield, etc.), Cyclone lock-on, Corruptor
+caustic spray, Queen/Thor fractional-armor nuances. And a **true Java golden master**
+(build a headless Java harness that stubs the Android UI to capture `resultMaker`
+outputs for a pair×upgrade matrix, then assert the TS matches) — hence
+`golden-master-tests` is 🟡: locked with SC2-value + characterization tests, but not
+yet byte-compared against the original Java.
+
 ### Environment caveat
 - Installed **Node is v20.20.0**; Expo SDK 58 officially requires **Node >= 22.13**.
   It still bundles on Node 20 (verified) but prints an "outdated Node" warning.
@@ -156,7 +207,7 @@ fully offline-first. A later task adds optional remote sync (see `data-sync-mech
 
 ## 5. Migration plan — task breakdown & status
 
-Legend: ✅ done · ⬜ pending
+Legend: ✅ done · 🟡 partial · ⬜ pending
 
 | ID | Task | Status | Depends on |
 |----|------|--------|-----------|
@@ -167,8 +218,8 @@ Legend: ✅ done · ⬜ pending
 | `define-types` | `Unit` interface, Race enum, upgrade/modifier types | ✅ | extract-unit-data |
 | `extract-images` | 57 images → `assets/units/` (highest density), unit→image map | ✅ | reconcile-source |
 | `extract-quiz-logic` | Port quiz behavior → `engine/quiz.ts` | ⬜ | reconcile-source |
-| `port-engine` | Port `UnitVUnit` math → pure `engine/collider.ts` | ⬜ | define-types, extract-unit-data |
-| `golden-master-tests` | Assert TS engine matches original Java outputs exactly | ⬜ | port-engine, reconcile-source |
+| `port-engine` | Port `UnitVUnit` math → pure `engine/collider.ts` | ✅ | define-types, extract-unit-data |
+| `golden-master-tests` | Assert TS engine matches original Java outputs exactly | 🟡 | port-engine, reconcile-source |
 | `nav-shell` | Shell polish: splash, transitions, theme (basic shell already built in scaffold) | ⬜ | scaffold-expo, setup-tooling |
 | `screen-uvu` | Build Unit vs Unit screen (uses engine) | ⬜ | nav-shell, port-engine, extract-images |
 | `screen-quiz` | Build Quiz screen (uses quiz engine) | ⬜ | nav-shell, extract-quiz-logic |
@@ -204,10 +255,12 @@ Legend: ✅ done · ⬜ pending
    `src/data/types.ts`. Done 2026-10-17.
 4. ✅ **`extract-images`** — 71 unit images copied into `src/assets/units/` with a
    typed `src/data/unitImages.ts` require() map. Done 2026-10-17.
-5. **`port-engine`** — translate `UnitVUnit` math into pure `src/engine/collider.ts`,
-   then lock it with **`golden-master-tests`** (capture original Java outputs for a
-   matrix of unit pairs × upgrade combos; assert exact match) before building the UI.
-6. Build screens (`screen-*`), then `device-test`, then shipping tasks.
+5. ✅ **`port-engine`** — `src/engine/collider.ts` (general simulation) +
+   `src/engine/unitProfiles.ts` (71 profiles extracted from the setters). Locked
+   with SC2-value tests. 🟡 **`golden-master-tests`**: true Java-execution golden
+   master still deferred (needs a headless Java harness). Done 2026-10-17.
+6. Build screens (`screen-*`), then `device-test`, then shipping tasks. The next
+   natural step is **`screen-uvu`** (Unit vs Unit UI on top of `collide()`).
 
 ---
 
