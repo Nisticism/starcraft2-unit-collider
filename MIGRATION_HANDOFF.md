@@ -198,6 +198,22 @@ outputs for a pair×upgrade matrix, then assert the TS matches) — hence
 `golden-master-tests` is 🟡: locked with SC2-value + characterization tests, but not
 yet byte-compared against the original Java.
 
+### `screen-uvu` done (2026-10-17)
+- Built the **Unit vs Unit** screen (`src/screens/CompareScreen.tsx`) on top of the
+  engine's `collide()`, with a **reusable component library** under `src/components/`
+  (replacing the old Android XML's manual fixed-position gaps with flexbox + `gap`):
+  - `Card`, `SegmentedControl` (race filter), `SelectModal` (searchable unit picker
+    with portraits + race dots), `UpgradeStepper` (0–3, reused for attack/armor/shields),
+    `UnitSelector` (composes the above into one side of a matchup), `StatRow`,
+    `ResultPanel` (winner banner + per-unit damage/DPS/time-to-kill/HP-left columns).
+  - Barrel export in `src/components/index.ts`.
+- Results recompute **live** (via `useMemo`) as units/upgrades change; a **VS** button
+  swaps the two sides. Shield-upgrade stepper only shows for Protoss. Race colors
+  (`theme.raceColors`) drive the accents. Added `src/data/unitCatalog.ts`
+  (name + race + image, sorted) to feed the picker.
+- **Verified:** `tsc --noEmit` clean, `eslint` 0 errors, 26 Jest tests green, and
+  `expo export` bundles the whole app (2.2 MB JS + all 71 images resolve).
+
 ### Environment caveat
 - Installed **Node is v20.20.0**; Expo SDK 58 officially requires **Node >= 22.13**.
   It still bundles on Node 20 (verified) but prints an "outdated Node" warning.
@@ -221,7 +237,7 @@ Legend: ✅ done · 🟡 partial · ⬜ pending
 | `port-engine` | Port `UnitVUnit` math → pure `engine/collider.ts` | ✅ | define-types, extract-unit-data |
 | `golden-master-tests` | Assert TS engine matches original Java outputs exactly | 🟡 | port-engine, reconcile-source |
 | `nav-shell` | Shell polish: splash, transitions, theme (basic shell already built in scaffold) | ⬜ | scaffold-expo, setup-tooling |
-| `screen-uvu` | Build Unit vs Unit screen (uses engine) | ⬜ | nav-shell, port-engine, extract-images |
+| `screen-uvu` | Build Unit vs Unit screen (uses engine) | ✅ | nav-shell, port-engine, extract-images |
 | `screen-quiz` | Build Quiz screen (uses quiz engine) | ⬜ | nav-shell, extract-quiz-logic |
 | `screen-unit-db` | Build Unit Database list + detail | ⬜ | nav-shell, extract-unit-data, extract-images |
 | `screen-interactions` | Build All Interactions screen | ⬜ | nav-shell, extract-unit-data |
@@ -259,8 +275,11 @@ Legend: ✅ done · 🟡 partial · ⬜ pending
    `src/engine/unitProfiles.ts` (71 profiles extracted from the setters). Locked
    with SC2-value tests. 🟡 **`golden-master-tests`**: true Java-execution golden
    master still deferred (needs a headless Java harness). Done 2026-10-17.
-6. Build screens (`screen-*`), then `device-test`, then shipping tasks. The next
-   natural step is **`screen-uvu`** (Unit vs Unit UI on top of `collide()`).
+6. ✅ **`screen-uvu`** — Unit vs Unit screen + reusable component library
+   (`src/components/`) on top of `collide()`. Done 2026-10-17.
+7. Remaining screens (`screen-unit-db`, `screen-interactions`, `screen-quiz` after
+   `extract-quiz-logic`, `screen-about-modal`), then `nav-shell` polish,
+   `device-test`, and shipping tasks.
 
 ---
 
