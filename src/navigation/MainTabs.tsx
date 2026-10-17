@@ -22,16 +22,8 @@ export default function MainTabs() {
         }),
       }}
     >
-      <Tab.Screen
-        name="Compare"
-        component={CompareScreen}
-        options={{ title: 'Unit vs Unit' }}
-      />
-      <Tab.Screen
-        name="Database"
-        component={DatabaseScreen}
-        options={{ title: 'Database' }}
-      />
+      <Tab.Screen name="Compare" component={CompareScreen} options={{ title: 'Unit vs Unit' }} />
+      <Tab.Screen name="Database" component={DatabaseScreen} options={{ title: 'Database' }} />
       <Tab.Screen name="Quiz" component={QuizScreen} options={{ title: 'Quiz' }} />
       <Tab.Screen
         name="Interactions"

@@ -1,0 +1,11 @@
+# Normalize line endings to LF across the repo for cross-platform consistency
+* text=auto eol=lf
+
+# Binary assets should not be modified
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ttf binary
+*.otf binary
+*.db binary
