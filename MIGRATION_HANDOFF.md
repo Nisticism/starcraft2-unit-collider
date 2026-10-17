@@ -103,6 +103,50 @@ fully offline-first. A later task adds optional remote sync (see `data-sync-mech
 - **Verified:** `tsc --noEmit` clean; Metro bundled 882 modules successfully.
 - Commits so far: `35ceb3c "Scaffold Expo + TypeScript app with navigation shell"`.
 
+### `setup-tooling` done (2026-10-17)
+- **ESLint** (flat config) via `eslint-config-expo/flat` + **Prettier** integrated
+  through `eslint-plugin-prettier` (`eslint.config.js`, `.prettierrc`,
+  `.prettierignore`). Added `.gitattributes` enforcing **LF** line endings and
+  normalized existing scaffold files to LF (so `prettier/prettier` passes on Windows).
+- **Jest** via the Expo-recommended **`jest-expo`** preset (not ts-jest — jest-expo
+  is the SDK-blessed path and transforms the pure TS engine/data too). Config lives
+  in `package.json` (`jest.preset` + `transformIgnorePatterns`). `@types/jest` added
+  to `tsconfig.json` `types`.
+- **Scripts:** `lint` (`expo lint`), `format` (`prettier --write .`), `test` (`jest`),
+  `test:watch`, `typecheck` (`tsc --noEmit`). Dev tooling moved to `devDependencies`.
+- **Verified:** `tsc --noEmit` clean; `expo lint` → 0 errors (2 pre-existing warnings
+  remain in `src/navigation/types.ts`, owned by the `nav-shell` task); `jest` green.
+
+### `extract-unit-data` + `define-types` done (2026-10-17)
+- Parsed all **71** `INSERT ... VALUES` rows from `origin/master`'s
+  `DatabaseHelper.java` (`populator()`). To reproduce SQLite type affinity exactly,
+  the reconstructed `CREATE TABLE` + 71 `INSERT`s were executed in an in-memory
+  SQLite DB and read back — so numeric columns are `number` and TEXT columns are
+  `string`, matching what the device DB stores. Apostrophes (`''` → `'`) and
+  embedded newlines preserved.
+- The prebuilt `UnitDB/SC2UnitDB.db` was checked and found **empty** (0 rows, an
+  older abandoned schema), so `DatabaseHelper.populator()` is the sole source of truth.
+- Output: `src/data/types.ts` (`Unit` interface — 50 original columns with JSDoc,
+  plus a `Race = 'Protoss' | 'Terran' | 'Zerg'` union) and `src/data/units.ts`
+  (`export const units: Unit[]`, 71 entries). `Pic1` is always `null` (images are a
+  separate `extract-images` task). Both files are AUTO-GENERATED (header notes this).
+- **Verified:** `tsc --noEmit` confirms the data satisfies `Unit`; a new
+  `src/data/__tests__/units.test.ts` locks the extraction (71 units, unique ids 1-71,
+  50 columns each, valid races, required non-null fields, known reference values).
+
+### `extract-images` done (2026-10-17)
+- Copied **71** unit images (one per unit) into `src/assets/units/` from the original
+  app's highest-density drawables (`drawable-xxhdpi`; ~1.6 MB total, 68 `.jpeg` +
+  3 `.jpg`). The authoritative name → `R.drawable` mapping came from
+  `unitsMade.java` (all 71 unit names matched 1:1, no gaps).
+- Generated `src/data/unitImages.ts`: `unitImagesById` (keyed by `unitID`),
+  `unitImagesByName` (keyed by `Name`), a `getUnitImage(unit)` helper, and an
+  `everyUnitHasImage` guard. Uses static `require('../assets/units/<file>')` so
+  Metro bundles each asset. (The handoff's earlier "57 images" estimate was low —
+  the app actually ships one image per unit = 71.)
+- **Verified:** `tsc --noEmit` clean; `src/data/__tests__/unitImages.test.ts`
+  asserts every unit (by id and name) has a bundled image and that requires resolve.
+
 ### Environment caveat
 - Installed **Node is v20.20.0**; Expo SDK 58 officially requires **Node >= 22.13**.
   It still bundles on Node 20 (verified) but prints an "outdated Node" warning.
@@ -118,10 +162,10 @@ Legend: ✅ done · ⬜ pending
 |----|------|--------|-----------|
 | `reconcile-source` | Pick source of truth (→ master) + back up local edits | ✅ | — |
 | `scaffold-expo` | Expo + TS project + navigation shell | ✅ | reconcile-source |
-| `setup-tooling` | ESLint + Prettier + Jest; npm scripts | ⬜ | scaffold-expo |
-| `extract-unit-data` | Export 71 units (50 cols) → typed `data/units.ts` | ⬜ | reconcile-source |
-| `define-types` | `Unit` interface, Race enum, upgrade/modifier types | ⬜ | extract-unit-data |
-| `extract-images` | 57 images → `assets/units/` (highest density), unit→image map | ⬜ | reconcile-source |
+| `setup-tooling` | ESLint + Prettier + Jest; npm scripts | ✅ | scaffold-expo |
+| `extract-unit-data` | Export 71 units (50 cols) → typed `data/units.ts` | ✅ | reconcile-source |
+| `define-types` | `Unit` interface, Race enum, upgrade/modifier types | ✅ | extract-unit-data |
+| `extract-images` | 57 images → `assets/units/` (highest density), unit→image map | ✅ | reconcile-source |
 | `extract-quiz-logic` | Port quiz behavior → `engine/quiz.ts` | ⬜ | reconcile-source |
 | `port-engine` | Port `UnitVUnit` math → pure `engine/collider.ts` | ⬜ | define-types, extract-unit-data |
 | `golden-master-tests` | Assert TS engine matches original Java outputs exactly | ⬜ | port-engine, reconcile-source |
@@ -153,13 +197,13 @@ Legend: ✅ done · ⬜ pending
 ## 6. Recommended next steps (in order)
 
 1. **(Optional but recommended)** Install **Node 22 LTS**.
-2. **`setup-tooling`** — add ESLint, Prettier, Jest (ts-jest) + npm scripts
-   (`lint`, `test`, `typecheck`).
-3. **`extract-unit-data`** — parse the 71 `INSERT ... VALUES` rows from
-   `origin/master`'s `DatabaseHelper.java` (reconcile vs `UnitDB/SC2UnitDB.db`)
-   into a typed `src/data/units.ts`. Define the `Unit` type (`define-types`).
-4. **`extract-images`** — copy highest-density images into `src/assets/units/`
-   and build a `unitId/name → require()` map.
+2. ✅ **`setup-tooling`** — ESLint, Prettier, Jest (`jest-expo`) + npm scripts
+   (`lint`, `format`, `test`, `test:watch`, `typecheck`). Done 2026-10-17.
+3. ✅ **`extract-unit-data`** + **`define-types`** — 71 units parsed from
+   `origin/master`'s `DatabaseHelper.java` into typed `src/data/units.ts` +
+   `src/data/types.ts`. Done 2026-10-17.
+4. ✅ **`extract-images`** — 71 unit images copied into `src/assets/units/` with a
+   typed `src/data/unitImages.ts` require() map. Done 2026-10-17.
 5. **`port-engine`** — translate `UnitVUnit` math into pure `src/engine/collider.ts`,
    then lock it with **`golden-master-tests`** (capture original Java outputs for a
    matrix of unit pairs × upgrade combos; assert exact match) before building the UI.
