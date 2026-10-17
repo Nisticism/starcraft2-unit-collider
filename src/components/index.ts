@@ -1,8 +1,12 @@
+export { Badge } from './Badge';
 export { Card } from './Card';
 export { Placeholder } from './Placeholder';
+export { Paragraph, Section } from './Section';
 export { ResultPanel } from './ResultPanel';
+export { SearchBar } from './SearchBar';
 export { SegmentedControl, type SegmentOption } from './SegmentedControl';
 export { SelectModal, type SelectItem } from './SelectModal';
 export { StatRow } from './StatRow';
+export { UnitListItem } from './UnitListItem';
 export { UnitSelector, type UnitChoice } from './UnitSelector';
 export { UpgradeStepper } from './UpgradeStepper';

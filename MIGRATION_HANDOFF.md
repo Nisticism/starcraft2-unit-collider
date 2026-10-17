@@ -214,6 +214,21 @@ yet byte-compared against the original Java.
 - **Verified:** `tsc --noEmit` clean, `eslint` 0 errors, 26 Jest tests green, and
   `expo export` bundles the whole app (2.2 MB JS + all 71 images resolve).
 
+### `screen-unit-db` done (2026-10-17)
+- Built the **Unit Database** list (`src/screens/DatabaseScreen.tsx`): a searchable,
+  race-filterable `FlatList` of all 71 units (portrait + name + race badge + HP),
+  each row tapping through to a detail screen. Reuses `SegmentedControl` + new
+  `SearchBar` / `UnitListItem` / `Badge` components.
+- Built the **Unit Detail** screen (`src/screens/UnitDetailScreen.tsx`): hero portrait
+  + decoded attributes, a **Combat** stat card and **Cost & production** card, then
+  Description / Special abilities / Upgrades / Strong-vs / Weak-vs / Uses / Lore
+  sections (new reusable `Section` + `Paragraph`). Reads the full display record from
+  `src/data/units.ts` via `unitById`. Navigation: tab → root-stack `UnitDetail`.
+- New reusable components: `SearchBar`, `Badge`, `UnitListItem`, `Section`/`Paragraph`
+  (barrel-exported). `unitCatalog.ts` now also exposes `unitById` + headline stats.
+- **Verified:** `tsc` clean, `eslint` 0 errors, 26 Jest tests green, `expo export`
+  bundles the whole app.
+
 ### Environment caveat
 - Installed **Node is v20.20.0**; Expo SDK 58 officially requires **Node >= 22.13**.
   It still bundles on Node 20 (verified) but prints an "outdated Node" warning.
@@ -239,8 +254,8 @@ Legend: ✅ done · 🟡 partial · ⬜ pending
 | `nav-shell` | Shell polish: splash, transitions, theme (basic shell already built in scaffold) | ⬜ | scaffold-expo, setup-tooling |
 | `screen-uvu` | Build Unit vs Unit screen (uses engine) | ✅ | nav-shell, port-engine, extract-images |
 | `screen-quiz` | Build Quiz screen (uses quiz engine) | ⬜ | nav-shell, extract-quiz-logic |
-| `screen-unit-db` | Build Unit Database list + detail | ⬜ | nav-shell, extract-unit-data, extract-images |
-| `screen-interactions` | Build All Interactions screen | ⬜ | nav-shell, extract-unit-data |
+| `screen-unit-db` | Build Unit Database list + detail | ✅ | nav-shell, extract-unit-data, extract-images |
+| `screen-interactions` | Build All Interactions screen (real tables, not images) | ⬜ | nav-shell, extract-unit-data, port-engine |
 | `screen-about-modal` | Build About + image zoom modal (+ privacy policy) | ⬜ | nav-shell |
 | `icons-splash` | App icons + splash for iOS/Android | ⬜ | scaffold-expo |
 | `legal-ip-review` | Blizzard SC2 trademark/asset + store policy review | ⬜ | — |
@@ -253,7 +268,28 @@ Legend: ✅ done · 🟡 partial · ⬜ pending
 ### Known future refinement (user-flagged, deliberately deferred)
 - **Data is out of date:** SC2 has had hundreds of patches. Many of the 71 units
   have stale stats; some current units are missing; some units were removed. See
-  `update-unit-data`.
+  `update-unit-data`. **Data-source research (2026-10-17, for `update-unit-data`):**
+  - **No official simple REST endpoint** from Blizzard for unit stats. The Battle.net
+    SC2 APIs cover profiles/ladders/achievements, not unit HP/damage/armor.
+  - **Gold standard (most exact + always current per patch):** the Blizzard
+    **s2client-api** `ResponseData.unit_type_data` — read the *game's own* data from an
+    installed client. Easiest via the Python libs `burnysc2` / `pysc2`: a short script
+    dumps every unit's current stats to JSON. Requires the game installed; this is the
+    authoritative, patch-accurate source.
+  - **Convenient but may lag patches:** **Liquipedia** via its MediaWiki API
+    (`https://liquipedia.net/starcraft2/api.php?action=parse&page=<Unit>&format=json`)
+    — parse the infobox; must set a descriptive `User-Agent` and respect rate limits /
+    attribution. Community scrapers exist (e.g. `kn0ll/sc2-unit-api`) but target the
+    long-dead battle.net game guide, so they're unreliable now.
+  - **Recommendation:** script the s2client-api/`burnysc2` dump as the data source,
+    optionally reconciled against Liquipedia for display text/lore. Keep the output in
+    the same `Unit` shape as `src/data/units.ts` so it drops in.
+- **Interactions = real tables, not images.** The original "All Interactions" screen
+  used hacky *screenshots of spreadsheets* (`sc2_graph1/2...`) that you could only
+  row-highlight. Remake these as **real, tappable tables** whose every cell is
+  computed by **running `collide()`** across the relevant unit matrix (the numbers are
+  "unit A+B vs unit C+D"-style matchups). **Do this only after `update-unit-data`** so
+  the cells reflect accurate stats. Tracked under `screen-interactions`.
 - **Data sync:** want a way to update data without a full app-store release. See
   `data-sync-mechanism`.
 - **Engine inefficiency:** the original engine has inefficient/duplicated logic.
@@ -277,9 +313,10 @@ Legend: ✅ done · 🟡 partial · ⬜ pending
    master still deferred (needs a headless Java harness). Done 2026-10-17.
 6. ✅ **`screen-uvu`** — Unit vs Unit screen + reusable component library
    (`src/components/`) on top of `collide()`. Done 2026-10-17.
-7. Remaining screens (`screen-unit-db`, `screen-interactions`, `screen-quiz` after
-   `extract-quiz-logic`, `screen-about-modal`), then `nav-shell` polish,
-   `device-test`, and shipping tasks.
+7. ✅ **`screen-unit-db`** — Unit Database list + detail screens. Done 2026-10-17.
+8. Remaining screens (`screen-interactions` (real collide()-driven tables, after
+   `update-unit-data`), `screen-quiz` after `extract-quiz-logic`, `screen-about-modal`),
+   then `nav-shell` polish, `device-test`, and shipping tasks.
 
 ---
 
